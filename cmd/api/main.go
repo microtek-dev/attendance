@@ -1,6 +1,7 @@
 package main
 
 import (
+	"attendance/internal/database"
 	"attendance/internal/server"
 	"fmt"
 )
@@ -8,6 +9,9 @@ import (
 func main() {
 
 	server := server.NewServer()
+
+	// cron.StartCron()
+	database.SyncEmployeeData()
 
 	err := server.ListenAndServe()
 	if err != nil {

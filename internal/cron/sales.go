@@ -8,7 +8,8 @@ import (
 
 func StartCron() {
 	c := cron.New()
-	c.AddFunc("@every 30s", func() {
+	// run this every 1 minute
+	c.AddFunc("@every 1m", func() {
 		database.SyncEmployeeData()
 	})
 	// c.Start()

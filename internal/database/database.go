@@ -32,6 +32,11 @@ func init() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
+	err = DB.AutoMigrate(&ApprovalInbox{}, &SalesEmployeeRecords{}, &SalesDailyattendance{}, &SalesEmployeeMapping{}, &Dailyattendance{}, &Dailytask{})
+	if err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+
 	sqlDB, err := DB.DB()
 	if err != nil {
 		log.Fatalf("failed to get db instance: %v", err)
