@@ -29,8 +29,20 @@ func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	jsonResp, err := json.Marshal(s.db.Health())
+	db, err := s.db.DB()
+	
+	if err != nil {
+		log.Fatalf("failed to get db instance: %v", err)
+	}
 
+	if err := db.Ping(); err != nil {
+		log.Fatalf("failed to ping database: %v", err)
+	}
+
+	resp := make(map[string]string)
+	resp["status"] = "OK"
+
+	jsonResp, err := json.Marshal(resp)
 	if err != nil {
 		log.Fatalf("error handling JSON marshal. Err: %v", err)
 	}

@@ -1,67 +1,47 @@
 package database
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type Service interface {
-	Health() map[string]string
-}
-
-type service struct {
-	db *sql.DB
-}
-
 var (
-	dbname     = os.Getenv("DB_DATABASE")
-	password   = os.Getenv("DB_PASSWORD")
-	username   = os.Getenv("DB_USERNAME")
-	port       = os.Getenv("DB_PORT")
-	host       = os.Getenv("DB_HOST")
-	dbInstance *service
+	DB *gorm.DB
 )
 
-func New() Service {
-	// Reuse Connection
-	if dbInstance != nil {
-		return dbInstance
-	}
+func init() {
+	var err error
 
-	// Opening a driver typically will not attempt to connect to the database.
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, host, port, dbname))
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+	)
+
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		// This will not be a connection error, but a DSN parse error or
-		// another initialization error.
-		log.Fatal(err)
+		log.Fatalf("failed to connect database: %v", err)
 	}
-	db.SetConnMaxLifetime(0)
-	db.SetMaxIdleConns(50)
-	db.SetMaxOpenConns(50)
 
-	dbInstance = &service{
-		db: db,
-	}
-	return dbInstance
-}
-
-func (s *service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	err := s.db.PingContext(ctx)
+	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("db down: %v", err))
+		log.Fatalf("failed to get db instance: %v", err)
 	}
 
-	return map[string]string{
-		"message": "It's healthy",
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatalf("failed to ping database: %v", err)
 	}
 }
