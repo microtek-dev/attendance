@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -62,45 +63,51 @@ func SyncEmployeeData() {
 		log.Fatal(err)
 	}
 
+	var wg sync.WaitGroup
+	errorsChan := make(chan error)
+
 	for _, emp := range employees {
 		if emp.UserErpId != "" && emp.UserStatus == "Active" {
-			var convertedDateOfJoining time.Time
-			if emp.DateOfJoining != "" {
-				convertedDateOfJoining, err = time.Parse("2006-01-02T15:04:05", emp.DateOfJoining)
-				if err != nil {
-					log.Fatal(err)
+			wg.Add(1)
+			go func(emp Employee) {
+				defer wg.Done()
+
+				var convertedDateOfJoining time.Time
+				var err error
+				if emp.DateOfJoining != "" {
+					convertedDateOfJoining, err = time.Parse("2006-01-02T15:04:05", emp.DateOfJoining)
+					if err != nil {
+						errorsChan <- err
+						return
+					}
 				}
-			}
-			var convertedDateOfLeaving time.Time
-			if emp.DateOfLeaving != "" {
-				convertedDateOfLeaving, err = time.Parse("2006-01-02T15:04:05", emp.DateOfLeaving)
-				if err != nil {
-					log.Fatal(err)
+
+				var convertedDateOfLeaving time.Time
+				if emp.DateOfLeaving != "" {
+					convertedDateOfLeaving, err = time.Parse("2006-01-02T15:04:05", emp.DateOfLeaving)
+					if err != nil {
+						errorsChan <- err
+						return
+					}
 				}
-			}
-			err = DB.Create(&SalesEmployeeRecords{
-				UserName:                 emp.UserName,
-				UserErpId:                emp.UserErpId,
-				UserRank:                 emp.UserRank,
-				UserDesignation:          emp.UserDesignation,
-				ManagerErpId:             emp.ManagerErpId,
-				RegionErpId:              emp.RegionErpId,
-				IsFieldUser:              emp.IsFieldUser,
-				HQ:                       emp.HQ,
-				IsOrderBookingAllowed:    emp.IsOrderBookingAllowed,
-				Phone:                    emp.Phone,
-				Email:                    emp.Email,
-				ImeiNo:                   emp.ImeiNo,
-				DateOfJoining:            convertedDateOfJoining,
-				DateOfLeaving:            convertedDateOfLeaving,
-				UserType:                 emp.UserType,
-				UserStatus:               emp.UserStatus,
-				IsNewEntry:               emp.IsNewEntry,
-				LastUpdatedAtAsEpochTime: emp.LastUpdatedAtAsEpochTime,
-			}).Error
-			if err != nil {
-				log.Fatal(err)
-			}
+
+				err = DB.Create(&SalesEmployeeRecords{UserName: emp.UserName, UserErpId: emp.UserErpId, UserRank: emp.UserRank, UserDesignation: emp.UserDesignation, ManagerErpId: emp.ManagerErpId, RegionErpId: emp.RegionErpId, IsFieldUser: emp.IsFieldUser, HQ: emp.HQ, IsOrderBookingAllowed: emp.IsOrderBookingAllowed, Phone: emp.Phone, Email: emp.Email, ImeiNo: emp.ImeiNo, DateOfJoining: convertedDateOfJoining, DateOfLeaving: convertedDateOfLeaving, UserType: emp.UserType, UserStatus: emp.UserStatus, IsNewEntry: emp.IsNewEntry, LastUpdatedAtAsEpochTime: emp.LastUpdatedAtAsEpochTime}).Error
+				if err != nil {
+					errorsChan <- err
+					return
+				}
+			}(emp)
+		}
+	}
+
+	go func() {
+		wg.Wait()
+		close(errorsChan)
+	}()
+
+	for err := range errorsChan {
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 
