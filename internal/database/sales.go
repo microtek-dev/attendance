@@ -58,7 +58,7 @@ func SyncEmployeeData() {
 	}
 
 	// look at the above axios request in the comments for the logic to store the employees in the database, first truncate the table and then store the active employees
-	err = DB.Exec("TRUNCATE TABLE sales_employee_records").Error
+	err = TestDB.Exec("TRUNCATE TABLE sales_employee_records").Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func SyncEmployeeData() {
 					}
 				}
 
-				err = DB.Create(&SalesEmployeeRecords{UserName: emp.UserName, UserErpId: emp.UserErpId, UserRank: emp.UserRank, UserDesignation: emp.UserDesignation, ManagerErpId: emp.ManagerErpId, RegionErpId: emp.RegionErpId, IsFieldUser: emp.IsFieldUser, HQ: emp.HQ, IsOrderBookingAllowed: emp.IsOrderBookingAllowed, Phone: emp.Phone, Email: emp.Email, ImeiNo: emp.ImeiNo, DateOfJoining: convertedDateOfJoining, DateOfLeaving: convertedDateOfLeaving, UserType: emp.UserType, UserStatus: emp.UserStatus, IsNewEntry: emp.IsNewEntry, LastUpdatedAtAsEpochTime: emp.LastUpdatedAtAsEpochTime}).Error
+				err = TestDB.Create(&SalesEmployeeRecords{UserName: emp.UserName, UserErpId: emp.UserErpId, UserRank: emp.UserRank, UserDesignation: emp.UserDesignation, ManagerErpId: emp.ManagerErpId, RegionErpId: emp.RegionErpId, IsFieldUser: emp.IsFieldUser, HQ: emp.HQ, IsOrderBookingAllowed: emp.IsOrderBookingAllowed, Phone: emp.Phone, Email: emp.Email, ImeiNo: emp.ImeiNo, DateOfJoining: convertedDateOfJoining, DateOfLeaving: convertedDateOfLeaving, UserType: emp.UserType, UserStatus: emp.UserStatus, IsNewEntry: emp.IsNewEntry, LastUpdatedAtAsEpochTime: emp.LastUpdatedAtAsEpochTime}).Error
 				if err != nil {
 					errorsChan <- err
 					return
@@ -113,3 +113,115 @@ func SyncEmployeeData() {
 
 	log.Println("Employee data synced successfully. Total employees: ", len(employees))
 }
+
+/*
+function dailyTask() {
+  console.log("hello");
+  erpRecord.findAll().then((data) => {
+    data.map(async (emp, index) => {
+      //getTask(emp.dataValues.UserErpId)
+      await sleep(index * 200);
+      //console.log(emp.dataValues.UserErpId);
+      getTask(emp.dataValues.UserErpId);
+      //setTimeout(getTask, 200 * index, emp.dataValues.UserErpId)
+    });
+  });
+}
+//employeeData()
+//dailyTask()
+async function storeTask(task) {
+  dailyReport
+    .create(task)
+    .then((data1) => {})
+    .catch((err) => {
+      console.log(err);
+    });
+}
+*/
+
+func SyncSalesAttendance() {}
+
+/*
+async function getTask(id) {
+  const date = getMomentDate(); // mm/dd/yyyy
+  const datearray = date.split("/");
+  const sqlDate = datearray[2] + "-" + datearray[0] + "-" + datearray[1];
+  console.log(sqlDate);
+  axios({
+    method: "get",
+    url: `https://api.fieldassist.in/api/timeline/list?erpId=${id}&date=${date}`,
+    headers: {
+      "Content-Type": "multipart/form-data",
+      Authorization: "Basic VGVzdF8xMTAwODpPRU82clBYZGRCOHdtU1pJISR4Iw==",
+    },
+  })
+    .then((taskResponse) => {
+      taskResponse?.data?.UserTimelineDay?.map((task, index) => {
+        task.UserErpId = taskResponse.data.ErpId;
+        task.PunchDate = sqlDate;
+        setTimeout(storeTask, 100 * index, task);
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
+*/
+
+/*
+	{
+		"EmployeeName": "Md Neyaz Ahmad Khan",
+		"ErpId": "57986",
+		"Date": "2024-06-10T00:00:00",
+		"Designation": "Area Sales Executive",
+		"EmailId": "mdneyazkhan76@gmail.com",
+		"ContactNo": "7488170472",
+		"ManagerName": "Rahul Kumar",
+		"UserTimelineDay": []
+	}
+*/
+type FieldAssistAttendance struct {
+	EmployeeName    string `json:"EmployeeName"`
+	ErpId           string `json:"ErpId"`
+	Date            string `json:"Date"`
+	Designation     string `json:"Designation"`
+	EmailId         string `json:"EmailId"`
+	ContactNo       string `json:"ContactNo"`
+	ManagerName     string `json:"ManagerName"`
+	UserTimelineDay []struct{}
+}
+
+func getAttendanceForEmployee(employee_id string) {
+	date := time.Now().Format("2006-01-02")
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.fieldassist.in/api/timeline/list?erpId=%s&date=%s", employee_id, date), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Basic VGVzdF8xMTAwODpPRU82clBYZGRCOHdtU1pJISR4Iw==")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var attendances []FieldAssistAttendance
+	err = json.Unmarshal(body, &attendances)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// func saveAttendance(attendance FieldAssistAttendance) {
+// 	err := TestDB.Create(&Dailytask{UserErpId: attendance.UserErpId, PunchDate: attendance.PunchDate}).Error
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
