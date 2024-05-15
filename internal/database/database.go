@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -28,7 +29,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("failed to connect to Progression database: %v", err)
 	}
-	AwsDB, err = gorm.Open(mysql.Open(os.Getenv("TEST_DATABASE_URL")), &gorm.Config{})
+	AwsDB, err = gorm.Open(sqlserver.Open(os.Getenv("AWS_DATABASE_URL")), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect to AwsDB database: %v", err)
 	}
