@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -62,39 +63,32 @@ func SyncEmployeeData() {
 		log.Fatal(err)
 	}
 
+	var wg sync.WaitGroup
+	errorsChan := make(chan error)
+
 	for _, emp := range employees {
 		if emp.UserErpId != "" && emp.UserStatus == "Active" {
-			var convertedDateOfJoining time.Time
-			var err error
-			if emp.DateOfJoining != "" {
-				convertedDateOfJoining, err = time.Parse("2006-01-02T15:04:05", emp.DateOfJoining)
+			wg.Add(1)
+			go func(emp Employee) {
+				defer wg.Done()
+
+				err = TestDB.Exec(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, emp.DateOfJoining, emp.DateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime, time.Now(), time.Now()).Error
 				if err != nil {
-					log.Println("Error:", err)
-					continue
+					errorsChan <- err
+					return
 				}
-			}
+			}(emp)
+		}
+	}
 
-			var convertedDateOfLeaving time.Time
-			if emp.DateOfLeaving != "" {
-				convertedDateOfLeaving, err = time.Parse("2006-01-02T15:04:05", emp.DateOfLeaving)
-				if err != nil {
-					log.Println("Error:", err)
-					continue
-				}
-			}
+	go func() {
+		wg.Wait()
+		close(errorsChan)
+	}()
 
-			result := TestDB.Raw(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, convertedDateOfJoining, convertedDateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime)
-
-			if result.Error != nil {
-				log.Println("Failed to insert employee:", emp.UserName, "Error:", result.Error)
-				continue
-			}
-
-			if result.RowsAffected == 0 {
-				log.Println("No rows affected for employee:", emp.UserName)
-				continue
-			}
+	for err := range errorsChan {
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 
@@ -126,7 +120,42 @@ async function storeTask(task) {
 }
 */
 
-func SyncSalesAttendance() {}
+func SyncSalesAttendance() {
+	fmt.Println("Syncing sales attendance...")
+	var employees []Employee
+	err := TestDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	errorsChan := make(chan error)
+
+	for i, emp := range employees {
+		wg.Add(1)
+		go func(i int, emp Employee) {
+			defer wg.Done()
+
+			// Introduce a delay between each request
+			time.Sleep(time.Duration(i) * 50 * time.Millisecond)
+
+			getAttendanceForEmployee(emp.UserErpId)
+		}(i, emp)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errorsChan)
+	}()
+
+	for err := range errorsChan {
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Sales attendance synced successfully.")
+}
 
 /*
 async function getTask(id) {
@@ -242,15 +271,30 @@ func getAttendanceForEmployee(employee_id string) {
 		log.Fatal(err)
 	}
 
-	var attendances []FieldAssistAttendance
-	err = json.Unmarshal(body, &attendances)
+	var attendance FieldAssistAttendance
+	fmt.Println(string(body))
+	err = json.Unmarshal(body, &attendance)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	for _, task := range attendance.UserTimelineDay {
+		saveSalesAttendance(task)
+	}
 }
 
-func saveSalesAttendance(attendance FieldAssistAttendance) {
-	err := TestDB.Raw(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, attendance.ErpId, attendance.Date, "", 0, time.Now(), "", "", time.Now(), "").Error
+func saveSalesAttendance(task struct {
+	UserErpId     string    `json:"UserErpId"`
+	PunchDate     string    `json:"PunchDate"`
+	TransactionId string    `json:"TransactionId"`
+	DayStartType  int       `json:"DayStartType"`
+	InTime        time.Time `json:"InTime"`
+	Latitude      string    `json:"Latitude"`
+	ActivityType  string    `json:"ActivityType"`
+	OutTime       time.Time `json:"OutTime"`
+	Longitude     string    `json:"Longitude"`
+}) {
+	err := TestDB.Raw(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, task.UserErpId, task.PunchDate, task.TransactionId, task.DayStartType, task.InTime, task.Latitude, task.ActivityType, task.OutTime, task.Longitude).Error
 	if err != nil {
 		log.Fatal(err)
 	}

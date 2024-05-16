@@ -11,7 +11,7 @@ func main() {
 	server := server.NewServer()
 
 	cron.StartCron()
-	database.SyncEmployeeData()
+	database.SyncSalesAttendance()
 
 	err := server.ListenAndServe()
 	if err != nil {
