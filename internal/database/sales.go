@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -58,56 +57,44 @@ func SyncEmployeeData() {
 	}
 
 	// look at the above axios request in the comments for the logic to store the employees in the database, first truncate the table and then store the active employees
-	err = TestDB.Exec("TRUNCATE TABLE sales_employee_records").Error
+	err = TestDB.Exec("TRUNCATE TABLE erprecords").Error
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
-	errorsChan := make(chan error)
-
 	for _, emp := range employees {
 		if emp.UserErpId != "" && emp.UserStatus == "Active" {
-			wg.Add(1)
-			go func(emp Employee) {
-				defer wg.Done()
-
-				var convertedDateOfJoining time.Time
-				var err error
-				if emp.DateOfJoining != "" {
-					convertedDateOfJoining, err = time.Parse("2006-01-02T15:04:05", emp.DateOfJoining)
-					if err != nil {
-						errorsChan <- err
-						return
-					}
-				}
-
-				var convertedDateOfLeaving time.Time
-				if emp.DateOfLeaving != "" {
-					convertedDateOfLeaving, err = time.Parse("2006-01-02T15:04:05", emp.DateOfLeaving)
-					if err != nil {
-						errorsChan <- err
-						return
-					}
-				}
-
-				err = TestDB.Create(&SalesEmployeeRecords{UserName: emp.UserName, UserErpId: emp.UserErpId, UserRank: emp.UserRank, UserDesignation: emp.UserDesignation, ManagerErpId: emp.ManagerErpId, RegionErpId: emp.RegionErpId, IsFieldUser: emp.IsFieldUser, HQ: emp.HQ, IsOrderBookingAllowed: emp.IsOrderBookingAllowed, Phone: emp.Phone, Email: emp.Email, ImeiNo: emp.ImeiNo, DateOfJoining: convertedDateOfJoining, DateOfLeaving: convertedDateOfLeaving, UserType: emp.UserType, UserStatus: emp.UserStatus, IsNewEntry: emp.IsNewEntry, LastUpdatedAtAsEpochTime: emp.LastUpdatedAtAsEpochTime}).Error
+			var convertedDateOfJoining time.Time
+			var err error
+			if emp.DateOfJoining != "" {
+				convertedDateOfJoining, err = time.Parse("2006-01-02T15:04:05", emp.DateOfJoining)
 				if err != nil {
-					errorsChan <- err
-					return
+					log.Println("Error:", err)
+					continue
 				}
-			}(emp)
-		}
-	}
+			}
 
-	go func() {
-		wg.Wait()
-		close(errorsChan)
-	}()
+			var convertedDateOfLeaving time.Time
+			if emp.DateOfLeaving != "" {
+				convertedDateOfLeaving, err = time.Parse("2006-01-02T15:04:05", emp.DateOfLeaving)
+				if err != nil {
+					log.Println("Error:", err)
+					continue
+				}
+			}
 
-	for err := range errorsChan {
-		if err != nil {
-			log.Fatal(err)
+			result := TestDB.Raw(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, convertedDateOfJoining, convertedDateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime)
+
+			if result.Error != nil {
+				log.Println("Failed to insert employee:", emp.UserName, "Error:", result.Error)
+				continue
+			}
+
+			if result.RowsAffected == 0 {
+				log.Println("No rows affected for employee:", emp.UserName)
+				continue
+			}
 		}
 	}
 
@@ -180,6 +167,38 @@ async function getTask(id) {
 		"UserTimelineDay": []
 	}
 */
+
+/*
+	const DailyRecord = sequelize.define("dailytasks", {
+	  UserErpId: {
+	    type: Sequelize.STRING,
+	  },
+	  PunchDate: {
+	    type: Sequelize.STRING,
+	  },
+	  TransactionId: {
+	    type: Sequelize.STRING,
+	  },
+	  DayStartType: {
+	    type: Sequelize.INTEGER,
+	  },
+	  InTime: {
+	    type: Sequelize.DATE,
+	  },
+	  Latitude: {
+	    type: Sequelize.STRING,
+	  },
+	  ActivityType: {
+	    type: Sequelize.STRING,
+	  },
+	  OutTime: {
+	    type: Sequelize.DATE,
+	  },
+	  Longitude: {
+	    type: Sequelize.STRING,
+	  },
+	});
+*/
 type FieldAssistAttendance struct {
 	EmployeeName    string `json:"EmployeeName"`
 	ErpId           string `json:"ErpId"`
@@ -188,7 +207,17 @@ type FieldAssistAttendance struct {
 	EmailId         string `json:"EmailId"`
 	ContactNo       string `json:"ContactNo"`
 	ManagerName     string `json:"ManagerName"`
-	UserTimelineDay []struct{}
+	UserTimelineDay []struct {
+		UserErpId     string    `json:"UserErpId"`
+		PunchDate     string    `json:"PunchDate"`
+		TransactionId string    `json:"TransactionId"`
+		DayStartType  int       `json:"DayStartType"`
+		InTime        time.Time `json:"InTime"`
+		Latitude      string    `json:"Latitude"`
+		ActivityType  string    `json:"ActivityType"`
+		OutTime       time.Time `json:"OutTime"`
+		Longitude     string    `json:"Longitude"`
+	} `json:"UserTimelineDay"`
 }
 
 func getAttendanceForEmployee(employee_id string) {
@@ -200,6 +229,7 @@ func getAttendanceForEmployee(employee_id string) {
 		log.Fatal(err)
 	}
 	req.Header.Set("Authorization", "Basic VGVzdF8xMTAwODpPRU82clBYZGRCOHdtU1pJISR4Iw==")
+	req.Header.Set("Content-Type", "multipart/form-data")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -219,9 +249,9 @@ func getAttendanceForEmployee(employee_id string) {
 	}
 }
 
-// func saveAttendance(attendance FieldAssistAttendance) {
-// 	err := TestDB.Create(&Dailytask{UserErpId: attendance.UserErpId, PunchDate: attendance.PunchDate}).Error
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
+func saveSalesAttendance(attendance FieldAssistAttendance) {
+	err := TestDB.Raw(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, attendance.ErpId, attendance.Date, "", 0, time.Now(), "", "", time.Now(), "").Error
+	if err != nil {
+		log.Fatal(err)
+	}
+}

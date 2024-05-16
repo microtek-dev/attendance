@@ -11,8 +11,7 @@ func main() {
 	server := server.NewServer()
 
 	cron.StartCron()
-	lastPushedId := database.LastPushedId()
-	fmt.Println("Last pushed id: ", lastPushedId)
+	database.SyncEmployeeData()
 
 	err := server.ListenAndServe()
 	if err != nil {
