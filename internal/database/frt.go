@@ -116,9 +116,9 @@ func getTodayDate() Date {
 type FRTData struct {
 	FRTLogID       int       `gorm:"column:frt_log_id"`
 	DeviceID       int       `gorm:"column:device_id"`
-	UserID         int       `gorm:"column:user_id"`
+	UserID         string    `gorm:"column:user_id"`
 	LogDate        time.Time `gorm:"column:log_date"`
-	LogType        int       `gorm:"column:log_type"`
+	LogType        string    `gorm:"column:log_type"`
 	FRTCreatedDate time.Time `gorm:"column:frt_created_date"`
 }
 
@@ -138,12 +138,14 @@ func FetchFRTData(maxFetchID int) []FRTData {
 		log.Fatalf("failed to convert year to integer: %v", err)
 	}
 
-	tableName := fmt.Sprintf("DeviceLogs_%02d_%d", monthInt, yearInt)
-	query := fmt.Sprintf(`SELECT TOP 20000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+	tableName := fmt.Sprintf("DeviceLogs_%d_%d", monthInt, yearInt)
+	query := fmt.Sprintf(`SELECT TOP 100 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+	fmt.Println(tableName)
 	err = AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
 	if err != nil {
 		log.Fatalf("failed to fetch FRT data: %v", err)
 	}
 
+	fmt.Println(frtData, "Sandeep")
 	return frtData
 }
