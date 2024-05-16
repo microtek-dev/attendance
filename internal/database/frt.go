@@ -56,11 +56,17 @@ type FRTData struct {
 }
 
 func FetchFRTData(maxFetchID int) []FRTData {
+	// Get today's date
 	date := getTodayDate()
+
+	// Extract the month and year
 	month := date.Month
 	year := date.Year
 
+	// Initialize a slice to hold the fetched data
 	var frtData []FRTData
+
+	// Convert the month and year to integers
 	monthInt, err := strconv.Atoi(month)
 	if err != nil {
 		log.Fatalf("failed to convert month to integer: %v", err)
@@ -71,14 +77,22 @@ func FetchFRTData(maxFetchID int) []FRTData {
 		log.Fatalf("failed to convert year to integer: %v", err)
 	}
 
+	// Construct the table name based on the current month and year
 	tableName := fmt.Sprintf("DeviceLogs_%d_%d", monthInt, yearInt)
+
+	// Construct the SQL query
 	query := fmt.Sprintf(`SELECT TOP 10000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+
+	// Execute the query and scan the results into the frtData slice
 	err = AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
 	if err != nil {
 		log.Fatalf("failed to fetch FRT data: %v", err)
 	}
+
+	// Print the number of records fetched
 	fmt.Println("Total records fetched: ", len(frtData))
 
+	// Return the fetched data
 	return frtData
 }
 
