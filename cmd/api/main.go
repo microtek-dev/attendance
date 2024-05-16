@@ -12,7 +12,8 @@ func main() {
 
 	cron.StartCron()
 	maxId := database.FetchFRTMaxFetchId()
-	database.FetchFRTData(maxId)
+	frtData := database.FetchFRTData(maxId)
+	database.InsertFRTLogs(frtData)
 
 	err := server.ListenAndServe()
 	if err != nil {

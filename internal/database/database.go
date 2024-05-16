@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -27,7 +26,6 @@ func init() {
 		log.Fatalf("failed to connect to Test database: %v", err)
 	}
 	ProgressionDB, err = gorm.Open(mysql.Open(os.Getenv("PROGRESSION_DATABASE_URL")), &gorm.Config{})
-	fmt.Println("Sandeep")
 	if err != nil {
 		log.Fatalf("failed to connect to Progression database: %v", err)
 	}

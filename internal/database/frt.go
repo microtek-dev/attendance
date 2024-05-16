@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -139,13 +140,34 @@ func FetchFRTData(maxFetchID int) []FRTData {
 	}
 
 	tableName := fmt.Sprintf("DeviceLogs_%d_%d", monthInt, yearInt)
-	query := fmt.Sprintf(`SELECT TOP 100 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
-	fmt.Println(tableName)
+	query := fmt.Sprintf(`SELECT TOP 20000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
 	err = AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
 	if err != nil {
 		log.Fatalf("failed to fetch FRT data: %v", err)
 	}
 
-	fmt.Println(frtData, "Sandeep")
 	return frtData
+}
+
+func InsertFRTLogs(frtData []FRTData) {
+	var wg sync.WaitGroup
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Fatalf("failed to load location: %v", err)
+	}
+
+	for _, data := range frtData {
+		wg.Add(1)
+		go func(data FRTData) {
+			defer wg.Done()
+			data.LogDate = data.LogDate.In(loc)
+			data.FRTCreatedDate = data.FRTCreatedDate.In(loc)
+			err := ProgressionDB.Exec(`REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES (?, ?, ?, ?, ?, ?)`, data.DeviceID, data.UserID, data.LogDate, data.LogType, data.FRTCreatedDate, data.FRTLogID).Error
+			if err != nil {
+				log.Fatalf("failed to insert FRT logs: %v", err)
+			}
+		}(data)
+	}
+
+	wg.Wait()
 }
