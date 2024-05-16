@@ -8,74 +8,6 @@ import (
 	"time"
 )
 
-/*
-async function fetch_daily_punch() {
-  // fetch todays all punch
-  // store in our data base
-  const date = getdate();
-
-  const day = parseInt(date.day);
-  const month = parseInt(date.month);
-  const frt_max_logs = await sequelize.query(
-    `select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > '${date.year}-${date.month}-01'`,
-    { type: QueryTypes.SELECT },
-  );
-  console.log(frt_max_logs);
-  var max_fetch_id = '0';
-  if (frt_max_logs[0]?.max_id) {
-    max_fetch_id = frt_max_logs[0]?.max_id;
-  }
-  if (day == 1) {
-    const frt_max_logs_day1 = await sequelize.query(
-      `select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > '${date.year}-${date.month}-${date.day}'`,
-      { type: QueryTypes.SELECT },
-    );
-    console.log(frt_max_logs_day1);
-    if (frt_max_logs_day1[0]?.max_id) {
-      max_fetch_id = frt_max_logs_day1[0]?.max_id;
-    } else {
-      max_fetch_id = '0';
-    }
-  }
-  const frt_data = await frtdb.sequelize.query(
-    `select top 20000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date from DeviceLogs_${month}_${date.year} where DeviceLogId > ${max_fetch_id}  order by DeviceLogId`,
-    { type: QueryTypes.SELECT },
-  );
-  console.log(frt_data);
-  if (!frt_data.length) {
-  }
-  const maxRetries = 3;
-  let currentRetry = 0;
-  let backoffDelay = 100; // milliseconds
-  frt_data.map(async (item) => {
-    while (currentRetry < maxRetries) {
-      try {
-        const frt_logs_insert = await sequelize.query(
-          `REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES ('${item.device_id}','${
-            item.user_id
-          }','${item.log_date.toISOString().slice(0, 19).replace('T', ' ')}','${item.log_type}','${item.frt_created_date
-            .toISOString()
-            .slice(0, 19)
-            .replace('T', ' ')}','${item.frt_log_id}');`,
-          { type: QueryTypes.INSERT },
-        );
-        break; // If the query is successful, break the loop
-      } catch (error) {
-        if ((error.name === 'SequelizeDatabaseError' && error.parent && error.parent.errno === 1213) || error.parent.errno === 1205) {
-          console.log('sandeep', error);
-          console.log(`Error occurred (either deadlock or timeout). Retry attempt ${currentRetry + 1} after ${backoffDelay}ms.`);
-          currentRetry++;
-          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-          backoffDelay *= 2; // Double the delay for the next retry if needed
-        } else {
-          throw error; // If the error is not a deadlock or timeout, throw it
-        }
-      }
-    }
-  });
-}
-*/
-
 type Date struct {
 	Day   string
 	Month string
@@ -96,7 +28,7 @@ func FetchFRTMaxFetchId() int {
 		queryDate = fmt.Sprintf("%s-%s-%s", date.Year, date.Month, date.Day)
 	}
 
-	err := ProgressionDB.Raw("select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > ?", queryDate).Scan(&result).Error
+	err := TestDB.Raw("select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > ?", queryDate).Scan(&result).Error
 	if err != nil {
 		log.Fatalf("failed to fetch max id: %v", err)
 	}
@@ -140,34 +72,61 @@ func FetchFRTData(maxFetchID int) []FRTData {
 	}
 
 	tableName := fmt.Sprintf("DeviceLogs_%d_%d", monthInt, yearInt)
-	query := fmt.Sprintf(`SELECT TOP 20000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+	query := fmt.Sprintf(`SELECT TOP 10000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
 	err = AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
 	if err != nil {
 		log.Fatalf("failed to fetch FRT data: %v", err)
 	}
+	fmt.Println("Total records fetched: ", len(frtData))
 
 	return frtData
 }
 
 func InsertFRTLogs(frtData []FRTData) {
+	// Create a WaitGroup to ensure all goroutines complete
 	var wg sync.WaitGroup
+
+	// Load the "Asia/Kolkata" timezone
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
 		log.Fatalf("failed to load location: %v", err)
 	}
 
-	for _, data := range frtData {
+	// Create a semaphore with a capacity of 100 to limit concurrency
+	sem := make(chan bool, 100)
+
+	// Loop over the frtData slice
+	for i := range frtData {
+		// Add a count to the WaitGroup
 		wg.Add(1)
-		go func(data FRTData) {
+
+		// Acquire a semaphore
+		sem <- true
+
+		// Launch a goroutine to process the data
+		go func(i int) {
+			// Ensure the semaphore is released when the function exits
+			defer func() { <-sem }()
+			// Ensure the WaitGroup count is decremented when the function exits
 			defer wg.Done()
-			data.LogDate = data.LogDate.In(loc)
-			data.FRTCreatedDate = data.FRTCreatedDate.In(loc)
-			err := ProgressionDB.Exec(`REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES (?, ?, ?, ?, ?, ?)`, data.DeviceID, data.UserID, data.LogDate, data.LogType, data.FRTCreatedDate, data.FRTLogID).Error
+
+			// Adjust the LogDate and FRTCreatedDate to the "Asia/Kolkata" timezone
+			_, offset := frtData[i].LogDate.In(loc).Zone()
+			frtData[i].LogDate = frtData[i].LogDate.Add(-time.Duration(offset) * time.Second)
+			_, offset = frtData[i].FRTCreatedDate.In(loc).Zone()
+			frtData[i].FRTCreatedDate = frtData[i].FRTCreatedDate.Add(-time.Duration(offset) * time.Second)
+
+			// Insert the data into the database
+			err := TestDB.Exec(`REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES (?, ?, ?, ?, ?, ?)`, frtData[i].DeviceID, frtData[i].UserID, frtData[i].LogDate, frtData[i].LogType, frtData[i].FRTCreatedDate, frtData[i].FRTLogID).Error
 			if err != nil {
 				log.Fatalf("failed to insert FRT logs: %v", err)
 			}
-		}(data)
+		}(i)
 	}
 
+	// Wait for all goroutines to complete
 	wg.Wait()
+
+	// Print a success message
+	fmt.Println("FRT logs inserted successfully, total records: ", len(frtData))
 }
