@@ -11,9 +11,8 @@ func main() {
 	server := server.NewServer()
 
 	cron.StartCron()
-	maxId := database.FetchFRTMaxFetchId()
-	frtData := database.FetchFRTData(maxId)
-	database.InsertFRTLogs(frtData)
+	lastPushedId := database.LastPushedId()
+	fmt.Println("Last pushed id: ", lastPushedId)
 
 	err := server.ListenAndServe()
 	if err != nil {
