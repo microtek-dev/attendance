@@ -9,7 +9,7 @@ import (
 func main() {
 	server := server.NewServer()
 
-	cron.StartCron()
+	cron.SalesCron()
 
 	err := server.ListenAndServe()
 	if err != nil {
