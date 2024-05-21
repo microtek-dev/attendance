@@ -2,6 +2,7 @@ package database
 
 import (
 	"log"
+	"sync"
 	"time"
 )
 
@@ -52,4 +53,31 @@ func GetPreviousDayUnmatchedCRMAttendanceData() []CrmAttendanceLog {
 		log.Fatalf("failed to fetch crm_dailyattendances: %v", err)
 	}
 	return result
+}
+
+func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
+	var wg sync.WaitGroup
+	chunkSize := 100
+
+	for i := 0; i < len(punchData); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(punchData) {
+			end = len(punchData)
+		}
+
+		wg.Add(1)
+		go func(punchData []CrmAttendanceLog) {
+			defer wg.Done()
+
+			for _, data := range punchData {
+				InsertIntoAwsFrtData(data.EmployeeId, data.InTime)
+				InsertIntoAwsFrtData(data.EmployeeId, data.OutTime)
+			}
+		}(punchData[i:end])
+	}
+
+	wg.Wait()
+
+	log.Println("Inserted data into AWS successfully.")
 }

@@ -41,7 +41,7 @@ func AwsTableName() string {
 	return tableName
 }
 
-func InsertIntoAwsFrtData(userId string, logDate string) {
+func InsertIntoAwsFrtData(userId string, logDate time.Time) {
 	// Get the table name
 	tableName := AwsTableName()
 
