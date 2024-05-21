@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -46,57 +45,7 @@ func getTodayDate() Date {
 	}
 }
 
-type FRTData struct {
-	FRTLogID       int       `gorm:"column:frt_log_id"`
-	DeviceID       int       `gorm:"column:device_id"`
-	UserID         string    `gorm:"column:user_id"`
-	LogDate        time.Time `gorm:"column:log_date"`
-	LogType        string    `gorm:"column:log_type"`
-	FRTCreatedDate time.Time `gorm:"column:frt_created_date"`
-}
-
-func FetchFRTData(maxFetchID int) []FRTData {
-	// Get today's date
-	date := getTodayDate()
-
-	// Extract the month and year
-	month := date.Month
-	year := date.Year
-
-	// Initialize a slice to hold the fetched data
-	var frtData []FRTData
-
-	// Convert the month and year to integers
-	monthInt, err := strconv.Atoi(month)
-	if err != nil {
-		log.Fatalf("failed to convert month to integer: %v", err)
-	}
-
-	yearInt, err := strconv.Atoi(year)
-	if err != nil {
-		log.Fatalf("failed to convert year to integer: %v", err)
-	}
-
-	// Construct the table name based on the current month and year
-	tableName := fmt.Sprintf("DeviceLogs_%d_%d", monthInt, yearInt)
-
-	// Construct the SQL query
-	query := fmt.Sprintf(`SELECT TOP 10000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
-
-	// Execute the query and scan the results into the frtData slice
-	err = AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
-	if err != nil {
-		log.Fatalf("failed to fetch FRT data: %v", err)
-	}
-
-	// Print the number of records fetched
-	fmt.Println("Total records fetched: ", len(frtData))
-
-	// Return the fetched data
-	return frtData
-}
-
-func InsertFRTLogs(frtData []FRTData) {
+func InsertFRTLogs(frtData []AwsFRTData) {
 	// Create a WaitGroup to ensure all goroutines complete
 	var wg sync.WaitGroup
 

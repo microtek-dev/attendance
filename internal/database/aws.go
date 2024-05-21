@@ -4,7 +4,17 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 )
+
+type AwsFRTData struct {
+	FRTLogID       int       `gorm:"column:frt_log_id"`
+	DeviceID       int       `gorm:"column:device_id"`
+	UserID         string    `gorm:"column:user_id"`
+	LogDate        time.Time `gorm:"column:log_date"`
+	LogType        string    `gorm:"column:log_type"`
+	FRTCreatedDate time.Time `gorm:"column:frt_created_date"`
+}
 
 func AwsTableName() string {
 	// Get today's date
@@ -31,4 +41,37 @@ func AwsTableName() string {
 	return tableName
 }
 
-func InsertIntoAwsFrtData() {}
+func InsertIntoAwsFrtData(userId string, logDate string) {
+	// Get the table name
+	tableName := AwsTableName()
+
+	// Insert the data into the AWS table
+	err := AwsDB.Exec(`INSERT INTO `+tableName+`(UserId, LogDate, CreatedDate) VALUES (?, ?, ?)`, userId, logDate, time.Now()).Error
+	if err != nil {
+		log.Fatalf("failed to insert into AWS frt data: %v", err)
+	}
+
+	log.Printf("Inserted data into AWS: UserId: %s, LogDate: %s", userId, logDate)
+}
+
+func FetchAwsFRTData(maxFetchID int) []AwsFRTData {
+	// Initialize a slice to hold the fetched data
+	var frtData []AwsFRTData
+
+	tableName := AwsTableName()
+
+	// Construct the SQL query
+	query := fmt.Sprintf(`SELECT TOP 10000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+
+	// Execute the query and scan the results into the frtData slice
+	err := AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
+	if err != nil {
+		log.Fatalf("failed to fetch FRT data: %v", err)
+	}
+
+	// Print the number of records fetched
+	fmt.Println("Total records fetched: ", len(frtData))
+
+	// Return the fetched data
+	return frtData
+}

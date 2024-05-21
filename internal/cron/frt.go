@@ -4,6 +4,6 @@ import "attendance/internal/database"
 
 func SyncAwsFrtDataCron() {
 	maxId := database.FetchFRTMaxFetchId()
-	frtData := database.FetchFRTData(maxId)
+	frtData := database.FetchAwsFRTData(maxId)
 	database.InsertFRTLogs(frtData)
 }
