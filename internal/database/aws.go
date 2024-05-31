@@ -45,8 +45,23 @@ func InsertIntoAwsFrtData(userId string, logDate time.Time) {
 	// Get the table name
 	tableName := AwsTableName()
 
+	// if the combination of the userid and the logdate already exists then don't insert the data
+	type Result struct {
+		Count int
+	}
+	var result Result
+	err := AwsDB.Raw(`SELECT COUNT(*) count FROM `+tableName+` WHERE UserId = ? AND LogDate = ?`, userId, logDate).Scan(&result).Error
+	if err != nil {
+		log.Fatalf("failed to fetch data from AWS frt data: %v", err)
+	}
+
+	if result.Count > 0 {
+		log.Printf("Data already exists in AWS: UserId: %s, LogDate: %s", userId, logDate)
+		return
+	}
+
 	// Insert the data into the AWS table
-	err := AwsDB.Exec(`INSERT INTO `+tableName+`(UserId, LogDate, CreatedDate) VALUES (?, ?, ?)`, userId, logDate, time.Now()).Error
+	err = AwsDB.Exec(`INSERT INTO `+tableName+`(UserId, LogDate, CreatedDate) VALUES (?, ?, ?)`, userId, logDate, time.Now()).Error
 	if err != nil {
 		log.Fatalf("failed to insert into AWS frt data: %v", err)
 	}
