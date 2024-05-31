@@ -24,7 +24,42 @@ func SalesCron() {
 		database.SyncSalesAttendanceFromFieldAssist()
 	})
 
+	// Sync sales attendance every day at 6:03 AM
+	c.AddFunc("03 6 * * *", func() {
+		syncSalesAttendanceWithFrtYesterday()
+	})
+
+	// Sync sales attendance every day at 9:30 AM
+	c.AddFunc("30 21 * * *", func() {
+		syncSalesAttendanceWithFrtToday()
+	})
+
+	// Sync sales attendance every day at 8:59 PM
+	c.AddFunc("59 20 * * *", func() {
+		syncSalesAttendanceWithFrtToday()
+	})
+
 	// c.Start()
 }
 
-func syncSalesAttendanceWithFrt() {}
+func syncSalesAttendanceWithFrtYesterday() {
+	salesAttendanceData := database.GetSalesAttendanceFromDailyTask("yesterday")
+	database.SaveSalesAttendanceLocallyBulk(salesAttendanceData)
+	database.InsertSalesToAwsFrtDataBulk(salesAttendanceData)
+
+	// process unmatched sales attendance
+	unmatchedSalesAttendance := database.GetSalesAttendanceFromDailyTaskUnmatched("yesterday")
+	database.SaveSalesAttendanceLocallyBulk(unmatchedSalesAttendance)
+	database.InsertSalesToAwsFrtDataBulk(unmatchedSalesAttendance)
+}
+
+func syncSalesAttendanceWithFrtToday() {
+	salesAttendanceData := database.GetSalesAttendanceFromDailyTask("today")
+	database.SaveSalesAttendanceLocallyBulk(salesAttendanceData)
+	database.InsertSalesToAwsFrtDataBulk(salesAttendanceData)
+
+	// process unmatched sales attendance
+	unmatchedSalesAttendance := database.GetSalesAttendanceFromDailyTaskUnmatched("today")
+	database.SaveSalesAttendanceLocallyBulk(unmatchedSalesAttendance)
+	database.InsertSalesToAwsFrtDataBulk(unmatchedSalesAttendance)
+}
