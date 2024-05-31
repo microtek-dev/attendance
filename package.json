@@ -1,0 +1,8 @@
+{
+  "apps": [
+    {
+      "name": "attendance",
+      "script": "./main"
+    }
+  ]
+}
