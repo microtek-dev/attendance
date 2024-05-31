@@ -79,5 +79,5 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 
 	wg.Wait()
 
-	log.Println("Inserted data into AWS successfully.")
+	log.Println("Inserted data into AWS successfully. Total records: ", len(punchData))
 }
