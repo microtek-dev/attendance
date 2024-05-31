@@ -27,7 +27,7 @@ func FetchFRTMaxFetchId() int {
 		queryDate = fmt.Sprintf("%s-%s-%s", date.Year, date.Month, date.Day)
 	}
 
-	err := TestDB.Raw("select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > ?", queryDate).Scan(&result).Error
+	err := ProgressionDB.Raw("select max(cast(frt_log_id as signed)) max_id from frt_logs where log_date > ?", queryDate).Scan(&result).Error
 	if err != nil {
 		log.Fatalf("failed to fetch max id: %v", err)
 	}
@@ -80,7 +80,7 @@ func InsertFRTLogs(frtData []AwsFRTData) {
 			frtData[i].FRTCreatedDate = frtData[i].FRTCreatedDate.Add(-time.Duration(offset) * time.Second)
 
 			// Insert the data into the database
-			err := TestDB.Exec(`REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES (?, ?, ?, ?, ?, ?)`, frtData[i].DeviceID, frtData[i].UserID, frtData[i].LogDate, frtData[i].LogType, frtData[i].FRTCreatedDate, frtData[i].FRTLogID).Error
+			err := ProgressionDB.Exec(`REPLACE INTO frt_logs (device_id, user_id, log_date, log_type, frt_created_date, frt_log_id) VALUES (?, ?, ?, ?, ?, ?)`, frtData[i].DeviceID, frtData[i].UserID, frtData[i].LogDate, frtData[i].LogType, frtData[i].FRTCreatedDate, frtData[i].FRTLogID).Error
 			if err != nil {
 				log.Fatalf("failed to insert FRT logs: %v", err)
 			}

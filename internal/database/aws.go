@@ -76,7 +76,7 @@ func FetchAwsFRTData(maxFetchID int) []AwsFRTData {
 	tableName := AwsTableName()
 
 	// Construct the SQL query
-	query := fmt.Sprintf(`SELECT TOP 10000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
+	query := fmt.Sprintf(`SELECT TOP 20000 DeviceLogId frt_log_id, DeviceId device_id, UserId user_id, LogDate log_date, C1 log_type, CreatedDate frt_created_date FROM %s WHERE DeviceLogId > ? ORDER BY DeviceLogId`, tableName)
 
 	// Execute the query and scan the results into the frtData slice
 	err := AwsDB.Raw(query, maxFetchID).Scan(&frtData).Error
