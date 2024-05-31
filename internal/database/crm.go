@@ -7,9 +7,9 @@ import (
 )
 
 type CrmAttendanceLog struct {
-	EmployeeId string    `gorm:"column:employee_id"`
-	InTime     time.Time `gorm:"column:InTime"`
-	OutTime    time.Time `gorm:"column:OutTime"`
+	EmployeeId string `gorm:"column:employee_id"`
+	InTime     string `gorm:"column:InTime"`
+	OutTime    string `gorm:"column:OutTime"`
 }
 
 func InsertIntoCrmAttendanceLog(employeeId string, inTime time.Time, outTime time.Time) {
@@ -71,8 +71,19 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 			defer wg.Done()
 
 			for _, data := range punchData {
-				InsertIntoAwsFrtData(data.EmployeeId, data.InTime)
-				InsertIntoAwsFrtData(data.EmployeeId, data.OutTime)
+				// the intime and outtime are strings in this format - 2024-05-30 20:22:35,2024-05-30 20:22:35
+				// so convert them to golangs time.Time format
+				convertedInTime, err := time.Parse("2006-01-02 15:04:05", data.InTime)
+				if err != nil {
+					log.Fatalf("failed to parse InTime: %v", err)
+				}
+				convertedOutTime, err := time.Parse("2006-01-02 15:04:05", data.OutTime)
+				if err != nil {
+					log.Fatalf("failed to parse OutTime: %v", err)
+				}
+
+				InsertIntoAwsFrtData(data.EmployeeId, convertedInTime)
+				InsertIntoAwsFrtData(data.EmployeeId, convertedOutTime)
 			}
 		}(punchData[i:end])
 	}
