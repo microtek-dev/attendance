@@ -14,7 +14,7 @@ func FRTCron() {
 		SyncAwsFrtDataCron()
 	})
 
-	// c.Start()
+	c.Start()
 }
 
 func SyncAwsFrtDataCron() {
