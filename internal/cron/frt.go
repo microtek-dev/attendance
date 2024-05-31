@@ -20,5 +20,11 @@ func FRTCron() {
 func SyncAwsFrtDataCron() {
 	maxId := database.FetchFRTMaxFetchId()
 	frtData := database.FetchAwsFRTData(maxId)
+
+	// if no data is fetched, return
+	if len(frtData) == 0 {
+		return
+	}
+
 	database.InsertFRTLogs(frtData)
 }
