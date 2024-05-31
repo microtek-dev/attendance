@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -68,6 +69,8 @@ func InsertFrtLogBulk(punchData []FRTLogData) int {
 	}
 
 	wg.Wait()
+
+	fmt.Println("Total records inserted to napp table: ", len(punchData))
 
 	return punchData[len(punchData)-1].FrtID
 }
