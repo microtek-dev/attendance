@@ -1,7 +1,7 @@
 package main
 
 import (
-	"attendance/internal/cron"
+	"attendance/internal/database"
 	"attendance/internal/server"
 	"fmt"
 )
@@ -9,8 +9,9 @@ import (
 func main() {
 	server := server.NewServer()
 
-	cron.FRTCron()
-	cron.PeoplestrongCron()
+	database.SyncSalesAttendanceFromFieldAssist()
+	// cron.FRTCron()
+	// cron.PeoplestrongCron()
 
 	err := server.ListenAndServe()
 	if err != nil {

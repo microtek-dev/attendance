@@ -10,6 +10,46 @@ import (
 	"time"
 )
 
+// CustomTime to handle multiple time formats and null values
+type CustomTime struct {
+	time.Time
+	Valid bool // indicates if the time value is valid
+}
+
+// UnmarshalJSON parses time string into CustomTime, handling multiple formats and null values
+func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
+	// Check for null
+	if string(b) == "null" {
+		ct.Valid = false
+		return nil
+	}
+
+	// Define possible time formats
+	timeFormats := []string{
+		`"2006-01-02T15:04:05.0000000"`, // With nanoseconds
+		`"2006-01-02T15:04:05.000"`,     // With milliseconds
+		`"2006-01-02T15:04:05"`,         // Standard format
+	}
+
+	str := string(b)
+	for _, format := range timeFormats {
+		ct.Time, err = time.Parse(format, str)
+		if err == nil {
+			ct.Valid = true
+			return nil
+		}
+	}
+	return fmt.Errorf("cannot parse %q as time: %v", str, err)
+}
+
+// MarshalJSON handles the JSON marshaling for CustomTime
+func (ct CustomTime) MarshalJSON() ([]byte, error) {
+	if !ct.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ct.Time)
+}
+
 type Employee struct {
 	UserName                 string `json:"UserName"`
 	UserErpId                string `json:"UserErpId"`
@@ -95,13 +135,15 @@ func SyncEmployeeData() {
 	log.Println("Employee data synced successfully. Total employees: ", len(employees))
 }
 
-func SyncSalesAttendance() {
+func SyncSalesAttendanceFromFieldAssist() {
 	fmt.Println("Syncing sales attendance...")
 	var employees []Employee
 	err := TestDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
 	var wg sync.WaitGroup
 	errorsChan := make(chan error)
@@ -111,10 +153,10 @@ func SyncSalesAttendance() {
 		go func(i int, emp Employee) {
 			defer wg.Done()
 
-			// Introduce a delay between each request
-			time.Sleep(time.Duration(i) * 50 * time.Millisecond)
+			// Introduce a delay of 500ms between each request to avoid rate limiting
+			time.Sleep(time.Duration(i) * 500 * time.Millisecond)
 
-			getAttendanceForEmployee(emp.UserErpId)
+			getAttendanceForEmployee(emp.UserErpId, yesterday)
 		}(i, emp)
 	}
 
@@ -141,21 +183,17 @@ type FieldAssistAttendance struct {
 	ContactNo       string `json:"ContactNo"`
 	ManagerName     string `json:"ManagerName"`
 	UserTimelineDay []struct {
-		UserErpId     string    `json:"UserErpId"`
-		PunchDate     string    `json:"PunchDate"`
-		TransactionId string    `json:"TransactionId"`
-		DayStartType  int       `json:"DayStartType"`
-		InTime        time.Time `json:"InTime"`
-		Latitude      string    `json:"Latitude"`
-		ActivityType  string    `json:"ActivityType"`
-		OutTime       time.Time `json:"OutTime"`
-		Longitude     string    `json:"Longitude"`
+		TransactionId int        `json:"TransactionId"`
+		DayStartType  int        `json:"DayStartType"`
+		InTime        CustomTime `json:"InTime"`
+		Latitude      float32    `json:"Latitude"`
+		Longitude     float32    `json:"Longitude"`
+		ActivityType  string     `json:"ActivityType"`
+		OutTime       CustomTime `json:"OutTime"`
 	} `json:"UserTimelineDay"`
 }
 
-func getAttendanceForEmployee(employee_id string) {
-	date := time.Now().Format("2006-01-02")
-
+func getAttendanceForEmployee(employee_id string, date string) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.fieldassist.in/api/timeline/list?erpId=%s&date=%s", employee_id, date), nil)
 	if err != nil {
@@ -176,29 +214,26 @@ func getAttendanceForEmployee(employee_id string) {
 	}
 
 	var attendance FieldAssistAttendance
-	fmt.Println(string(body))
 	err = json.Unmarshal(body, &attendance)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error unmarshalling attendance data: ", err, string(body))
 	}
 
 	for _, task := range attendance.UserTimelineDay {
-		saveSalesAttendance(task)
+		saveSalesAttendance(employee_id, date, task)
 	}
 }
 
-func saveSalesAttendance(task struct {
-	UserErpId     string    `json:"UserErpId"`
-	PunchDate     string    `json:"PunchDate"`
-	TransactionId string    `json:"TransactionId"`
-	DayStartType  int       `json:"DayStartType"`
-	InTime        time.Time `json:"InTime"`
-	Latitude      string    `json:"Latitude"`
-	ActivityType  string    `json:"ActivityType"`
-	OutTime       time.Time `json:"OutTime"`
-	Longitude     string    `json:"Longitude"`
+func saveSalesAttendance(userErpId string, punchDate string, task struct {
+	TransactionId int        `json:"TransactionId"`
+	DayStartType  int        `json:"DayStartType"`
+	InTime        CustomTime `json:"InTime"`
+	Latitude      float32    `json:"Latitude"`
+	Longitude     float32    `json:"Longitude"`
+	ActivityType  string     `json:"ActivityType"`
+	OutTime       CustomTime `json:"OutTime"`
 }) {
-	err := TestDB.Raw(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, task.UserErpId, task.PunchDate, task.TransactionId, task.DayStartType, task.InTime, task.Latitude, task.ActivityType, task.OutTime, task.Longitude).Error
+	err := TestDB.Exec(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -210,7 +245,7 @@ type SalesAttendance struct {
 	OutTime    time.Time `gorm:"column:OutTime"`
 }
 
-func GetSalesAttendanceDailyTask() []SalesAttendance {
+func GetSalesAttendanceFromDailyTask() []SalesAttendance {
 	var salesAttendance []SalesAttendance
 	err := TestDB.Raw("select employee_id, InTime, OutTime from ( select daystarttype DayStartType,date_format(InTime,'%Y-%m-%d') Date,UserErpId,PunchDate, sales_mst.new_e_code employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from dailytasks as tasks, sales_employee_mapping as sales_mst where tasks.UserErpId = sales_mst.sales_id and PunchDate >= date_format(current_date() - INTERVAL 1 DAY, '%Y-%m-%d') group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate) tt;").Scan(&salesAttendance).Error
 	if err != nil {

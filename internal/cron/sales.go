@@ -16,13 +16,15 @@ func SalesCron() {
 
 	// Sync sales attendance every day at 5:30 AM
 	c.AddFunc("31 5 * * *", func() {
-		database.SyncSalesAttendance()
+		database.SyncSalesAttendanceFromFieldAssist()
 	})
 
 	// Sync sales attendance every day at 6:00 AM
 	c.AddFunc("00 6 * * *", func() {
-		database.SyncSalesAttendance()
+		database.SyncSalesAttendanceFromFieldAssist()
 	})
 
 	// c.Start()
 }
+
+func syncSalesAttendanceWithFrt() {}
