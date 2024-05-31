@@ -10,6 +10,7 @@ func main() {
 	server := server.NewServer()
 
 	cron.FRTCron()
+	cron.PeoplestrongCron()
 
 	err := server.ListenAndServe()
 	if err != nil {

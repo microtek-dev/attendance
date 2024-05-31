@@ -9,12 +9,12 @@ import (
 func PeoplestrongCron() {
 	c := cron.New()
 
-	// Run the sync every 30 minutes
-	c.AddFunc("*/30 * * * *", func() {
+	// Run the sync every 10 minutes
+	c.AddFunc("0 */10 * * * *", func() {
 		SyncFrtLogsPeoplestrongCron()
 	})
 
-	// c.Start()
+	c.Start()
 }
 
 func SyncFrtLogsPeoplestrongCron() {
