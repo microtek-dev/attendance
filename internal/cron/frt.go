@@ -10,7 +10,7 @@ func FRTCron() {
 	c := cron.New()
 
 	// Run the sync every 5 minutes
-	c.AddFunc("*/5 * * * *", func() {
+	c.AddFunc("0 */5 * * * *", func() {
 		SyncAwsFrtDataCron()
 	})
 
