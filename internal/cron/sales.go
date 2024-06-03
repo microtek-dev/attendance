@@ -2,6 +2,7 @@ package cron
 
 import (
 	"attendance/internal/database"
+	"time"
 
 	"github.com/robfig/cron"
 )
@@ -16,12 +17,32 @@ func SalesCron() {
 
 	// Sync sales attendance every day at 5:30 AM
 	c.AddFunc("31 5 * * *", func() {
-		database.SyncSalesAttendanceFromFieldAssist()
+		yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(yesterday)
 	})
 
 	// Sync sales attendance every day at 6:00 AM
 	c.AddFunc("00 6 * * *", func() {
-		database.SyncSalesAttendanceFromFieldAssist()
+		yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(yesterday)
+	})
+
+	// Sync today's sales attendance every day at 8:00 AM
+	c.AddFunc("00 21 * * *", func() {
+		today := time.Now().Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(today)
+	})
+
+	// Sync today's sales attendance every day at 8:15 PM
+	c.AddFunc("15 21 * * *", func() {
+		today := time.Now().Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(today)
+	})
+
+	// Sync today's sales attendance every day at 8:30 PM
+	c.AddFunc("35 20 * * *", func() {
+		today := time.Now().Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(today)
 	})
 
 	// Sync sales attendance every day at 6:03 AM
@@ -39,7 +60,7 @@ func SalesCron() {
 		syncSalesAttendanceWithFrtToday()
 	})
 
-	// c.Start()
+	c.Start()
 }
 
 func syncSalesAttendanceWithFrtYesterday() {

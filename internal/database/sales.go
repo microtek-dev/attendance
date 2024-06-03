@@ -135,15 +135,13 @@ func SyncEmployeeData() {
 	log.Println("Employee data synced successfully. Total employees: ", len(employees))
 }
 
-func SyncSalesAttendanceFromFieldAssist() {
+func SyncSalesAttendanceFromFieldAssist(date string) {
 	fmt.Println("Syncing sales attendance...")
 	var employees []Employee
 	err := TestDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
 	var wg sync.WaitGroup
 	errorsChan := make(chan error)
@@ -156,7 +154,7 @@ func SyncSalesAttendanceFromFieldAssist() {
 			// Introduce a delay of 500ms between each request to avoid rate limiting
 			time.Sleep(time.Duration(i) * 500 * time.Millisecond)
 
-			getAttendanceForEmployee(emp.UserErpId, yesterday)
+			getAttendanceForEmployee(emp.UserErpId, date)
 		}(i, emp)
 	}
 
