@@ -98,7 +98,7 @@ func SyncEmployeeData() {
 	}
 
 	// look at the above axios request in the comments for the logic to store the employees in the database, first truncate the table and then store the active employees
-	err = TestDB.Exec("TRUNCATE TABLE erprecords").Error
+	err = ProgressionDB.Exec("TRUNCATE TABLE erprecords").Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func SyncEmployeeData() {
 			go func(emp Employee) {
 				defer wg.Done()
 
-				err = TestDB.Exec(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, emp.DateOfJoining, emp.DateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime, time.Now(), time.Now()).Error
+				err = ProgressionDB.Exec(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, emp.DateOfJoining, emp.DateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime, time.Now(), time.Now()).Error
 				if err != nil {
 					errorsChan <- err
 					return
@@ -138,7 +138,7 @@ func SyncEmployeeData() {
 func SyncSalesAttendanceFromFieldAssist(date string) {
 	fmt.Println("Syncing sales attendance...")
 	var employees []Employee
-	err := TestDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
+	err := ProgressionDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func saveSalesAttendance(userErpId string, punchDate string, task struct {
 	ActivityType  string     `json:"ActivityType"`
 	OutTime       CustomTime `json:"OutTime"`
 }) {
-	err := TestDB.Exec(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
+	err := ProgressionDB.Exec(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func GetSalesAttendanceFromDailyTask(day string) []SalesAttendance {
 		log.Fatal("Invalid day argument. Must be 'today' or 'yesterday'.")
 	}
 
-	err := TestDB.Raw(query).Scan(&salesAttendance).Error
+	err := ProgressionDB.Raw(query).Scan(&salesAttendance).Error
 	if err != nil {
 		log.Fatal("Error fetching sales attendance: ", err)
 	}
@@ -277,7 +277,7 @@ func GetSalesAttendanceFromDailyTaskUnmatched(day string) []SalesAttendance {
 		log.Fatal("Invalid day argument. Must be 'today' or 'yesterday'.")
 	}
 
-	err := TestDB.Raw(query).Scan(&salesAttendance).Error
+	err := ProgressionDB.Raw(query).Scan(&salesAttendance).Error
 	if err != nil {
 		log.Fatal("Error fetching sales attendance: ", err)
 	}
@@ -294,7 +294,7 @@ func SaveSalesAttendanceLocallyBulk(salesAttendance []SalesAttendance) {
 		go func(attendance SalesAttendance) {
 			defer wg.Done()
 
-			err := TestDB.Exec(`INSERT INTO sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?)`, attendance.EmployeeId, attendance.InTime, attendance.OutTime, time.Now(), time.Now()).Error
+			err := ProgressionDB.Exec(`INSERT INTO sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?,?)`, attendance.EmployeeId, attendance.InTime, attendance.OutTime, time.Now(), time.Now()).Error
 			if err != nil {
 				errorsChan <- err
 				return

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -63,10 +64,11 @@ func InsertIntoAwsFrtData(userId string, logDate time.Time) {
 	// Insert the data into the AWS table
 	err = AwsDB.Exec(`INSERT INTO `+tableName+`(UserId, LogDate, CreatedDate) VALUES (?, ?, ?)`, userId, logDate, time.Now()).Error
 	if err != nil {
+		if strings.Contains(err.Error(), "PRIMARY KEY constraint") {
+			return
+		}
 		log.Fatalf("failed to insert into AWS frt data: %v", err)
 	}
-
-	log.Printf("Inserted data into AWS: UserId: %s, LogDate: %s", userId, logDate)
 }
 
 func FetchAwsFRTData(maxFetchID int) []AwsFRTData {

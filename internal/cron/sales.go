@@ -2,6 +2,7 @@ package cron
 
 import (
 	"attendance/internal/database"
+	"fmt"
 	"time"
 
 	"github.com/robfig/cron"
@@ -52,18 +53,19 @@ func SalesCron() {
 
 	// Sync sales attendance every day at 9:30 AM
 	c.AddFunc("30 21 * * *", func() {
-		syncSalesAttendanceWithFrtToday()
+		SyncSalesAttendanceWithFrtToday()
 	})
 
 	// Sync sales attendance every day at 8:59 PM
 	c.AddFunc("59 20 * * *", func() {
-		syncSalesAttendanceWithFrtToday()
+		SyncSalesAttendanceWithFrtToday()
 	})
 
 	c.Start()
 }
 
 func syncSalesAttendanceWithFrtYesterday() {
+	fmt.Println(time.Now(), "Syncing sales attendance with FRT for yesterday")
 	salesAttendanceData := database.GetSalesAttendanceFromDailyTask("yesterday")
 	database.SaveSalesAttendanceLocallyBulk(salesAttendanceData)
 	database.InsertSalesToAwsFrtDataBulk(salesAttendanceData)
@@ -72,9 +74,11 @@ func syncSalesAttendanceWithFrtYesterday() {
 	unmatchedSalesAttendance := database.GetSalesAttendanceFromDailyTaskUnmatched("yesterday")
 	database.SaveSalesAttendanceLocallyBulk(unmatchedSalesAttendance)
 	database.InsertSalesToAwsFrtDataBulk(unmatchedSalesAttendance)
+	fmt.Println(time.Now(), "Syncing sales attendance with FRT for yesterday done")
 }
 
-func syncSalesAttendanceWithFrtToday() {
+func SyncSalesAttendanceWithFrtToday() {
+	fmt.Println(time.Now(), "Syncing sales attendance with FRT for today")
 	salesAttendanceData := database.GetSalesAttendanceFromDailyTask("today")
 	database.SaveSalesAttendanceLocallyBulk(salesAttendanceData)
 	database.InsertSalesToAwsFrtDataBulk(salesAttendanceData)
@@ -83,4 +87,5 @@ func syncSalesAttendanceWithFrtToday() {
 	unmatchedSalesAttendance := database.GetSalesAttendanceFromDailyTaskUnmatched("today")
 	database.SaveSalesAttendanceLocallyBulk(unmatchedSalesAttendance)
 	database.InsertSalesToAwsFrtDataBulk(unmatchedSalesAttendance)
+	fmt.Println(time.Now(), "Syncing sales attendance with FRT for today done")
 }
