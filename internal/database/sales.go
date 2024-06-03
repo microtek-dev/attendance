@@ -112,7 +112,7 @@ func SyncEmployeeData() {
 			go func(emp Employee) {
 				defer wg.Done()
 
-				err = ProgressionDB.Exec(`INSERT INTO erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, emp.DateOfJoining, emp.DateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime, time.Now(), time.Now()).Error
+				err = ProgressionDB.Exec(`INSERT INTO microtek.erprecords (UserName, UserErpId, UserRank, UserDesignation, ManagerErpId, RegionErpId, IsFieldUser, HQ, IsOrderBookingAllowed, Phone, Email, ImeiNo, DateOfJoining, DateOfLeaving, UserType, UserStatus, IsNewEntry, LastUpdatedAtAsEpochTime, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, emp.UserName, emp.UserErpId, emp.UserRank, emp.UserDesignation, emp.ManagerErpId, emp.RegionErpId, emp.IsFieldUser, emp.HQ, emp.IsOrderBookingAllowed, emp.Phone, emp.Email, emp.ImeiNo, emp.DateOfJoining, emp.DateOfLeaving, emp.UserType, emp.UserStatus, emp.IsNewEntry, emp.LastUpdatedAtAsEpochTime, time.Now(), time.Now()).Error
 				if err != nil {
 					errorsChan <- err
 					return
@@ -138,7 +138,7 @@ func SyncEmployeeData() {
 func SyncSalesAttendanceFromFieldAssist(date string) {
 	fmt.Println("Syncing sales attendance...")
 	var employees []Employee
-	err := ProgressionDB.Raw("SELECT * FROM erprecords").Scan(&employees).Error
+	err := ProgressionDB.Raw("SELECT * FROM microtek.erprecords").Scan(&employees).Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func saveSalesAttendance(userErpId string, punchDate string, task struct {
 	ActivityType  string     `json:"ActivityType"`
 	OutTime       CustomTime `json:"OutTime"`
 }) {
-	err := ProgressionDB.Exec(`INSERT INTO dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
+	err := ProgressionDB.Exec(`INSERT INTO microtek.dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -249,9 +249,9 @@ func GetSalesAttendanceFromDailyTask(day string) []SalesAttendance {
 
 	switch day {
 	case "today":
-		query = "select employee_id, InTime, OutTime from ( select daystarttype DayStartType,date_format(InTime,'%Y-%m-%d') Date,UserErpId,PunchDate, sales_mst.new_e_code employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from dailytasks as tasks, sales_employee_mapping as sales_mst where tasks.UserErpId = sales_mst.sales_id and PunchDate >= date_format(current_date(), '%Y-%m-%d') group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate) tt;"
+		query = "select employee_id, InTime, OutTime from ( select daystarttype DayStartType,date_format(InTime,'%Y-%m-%d') Date,UserErpId,PunchDate, sales_mst.new_e_code employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from microtek.dailytasks as tasks, microtek.sales_employee_mapping as sales_mst where tasks.UserErpId = sales_mst.sales_id and PunchDate >= date_format(current_date(), '%Y-%m-%d') group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate) tt;"
 	case "yesterday":
-		query = "select employee_id, InTime, OutTime from ( select daystarttype DayStartType,date_format(InTime,'%Y-%m-%d') Date,UserErpId,PunchDate, sales_mst.new_e_code employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from dailytasks as tasks, sales_employee_mapping as sales_mst where tasks.UserErpId = sales_mst.sales_id and PunchDate >= date_format(current_date() - INTERVAL 1 DAY, '%Y-%m-%d') group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate) tt;"
+		query = "select employee_id, InTime, OutTime from ( select daystarttype DayStartType,date_format(InTime,'%Y-%m-%d') Date,UserErpId,PunchDate, sales_mst.new_e_code employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from microtek.dailytasks as tasks, microtek.sales_employee_mapping as sales_mst where tasks.UserErpId = sales_mst.sales_id and PunchDate >= date_format(current_date() - INTERVAL 1 DAY, '%Y-%m-%d') group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate) tt;"
 	default:
 		log.Fatal("Invalid day argument. Must be 'today' or 'yesterday'.")
 	}
@@ -270,9 +270,9 @@ func GetSalesAttendanceFromDailyTaskUnmatched(day string) []SalesAttendance {
 
 	switch day {
 	case "today":
-		query = "select UserErpId as employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else  case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from dailytasks as tasks where PunchDate >= date_format(current_date(), '%Y-%m-%d') and UserErpId Not In (select distinct(sales_id) from sales_employee_mapping) group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate;"
+		query = "select UserErpId as employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else  case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from microtek.dailytasks as tasks where PunchDate >= date_format(current_date(), '%Y-%m-%d') and UserErpId Not In (select distinct(sales_id) from microtek.sales_employee_mapping) group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate;"
 	case "yesterday":
-		query = "select UserErpId as employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else  case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from dailytasks as tasks where PunchDate >= date_format(current_date() - INTERVAL 1 DAY, '%Y-%m-%d') and UserErpId Not In (select distinct(sales_id) from sales_employee_mapping) group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate;"
+		query = "select UserErpId as employee_id, min(date_add(case when ActivityType='Day End (Normal)' then OutTime else  case when InTime > PunchDate then InTime else case when OutTime > PunchDate then OutTime else NULL end end end,INTERVAL 330 minute)) InTime, max(date_add(case when ActivityType='Day Start' then InTime else case when OutTime > PunchDate then OutTime else case when InTime > PunchDate then InTime else NULL end end end,INTERVAL 330 minute)) OutTime from microtek.dailytasks as tasks where PunchDate >= date_format(current_date() - INTERVAL 1 DAY, '%Y-%m-%d') and UserErpId Not In (select distinct(sales_id) from microtek.sales_employee_mapping) group by daystarttype,PunchDate,UserErpId order by daystarttype,usererpid,PunchDate;"
 	default:
 		log.Fatal("Invalid day argument. Must be 'today' or 'yesterday'.")
 	}
@@ -294,7 +294,7 @@ func SaveSalesAttendanceLocallyBulk(salesAttendance []SalesAttendance) {
 		go func(attendance SalesAttendance) {
 			defer wg.Done()
 
-			err := ProgressionDB.Exec(`INSERT INTO sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?,?)`, attendance.EmployeeId, attendance.InTime, attendance.OutTime, time.Now(), time.Now()).Error
+			err := ProgressionDB.Exec(`INSERT INTO microtek.sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?,?)`, attendance.EmployeeId, attendance.InTime, attendance.OutTime, time.Now(), time.Now()).Error
 			if err != nil {
 				errorsChan <- err
 				return
