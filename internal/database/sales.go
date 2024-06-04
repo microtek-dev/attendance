@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,9 +18,12 @@ type CustomTime struct {
 }
 
 // UnmarshalJSON parses time string into CustomTime, handling multiple formats and null values
+// UnmarshalJSON parses time string into CustomTime, handling multiple formats and null values
 func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
-	// Check for null
-	if string(b) == "null" {
+	str := string(b)
+
+	// Check for null or '0000-00-00 00:00:00'
+	if str == "null" || strings.Contains(str, "0001-01-01T00:00:00") {
 		ct.Valid = false
 		return nil
 	}
@@ -31,7 +35,6 @@ func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
 		`"2006-01-02T15:04:05"`,         // Standard format
 	}
 
-	str := string(b)
 	for _, format := range timeFormats {
 		ct.Time, err = time.Parse(format, str)
 		if err == nil {
@@ -231,7 +234,15 @@ func saveSalesAttendance(userErpId string, punchDate string, task struct {
 	ActivityType  string     `json:"ActivityType"`
 	OutTime       CustomTime `json:"OutTime"`
 }) {
-	err := ProgressionDB.Exec(`INSERT INTO microtek.dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, task.InTime.Time, task.Latitude, task.ActivityType, task.OutTime.Time, task.Longitude, time.Now(), time.Now()).Error
+	var inTime, outTime interface{}
+	if task.InTime.Valid {
+		inTime = task.InTime.Time
+	}
+	if task.OutTime.Valid {
+		outTime = task.OutTime.Time
+	}
+
+	err := ProgressionDB.Exec(`INSERT INTO microtek.dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, inTime, task.Latitude, task.ActivityType, outTime, task.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		log.Fatal(err)
 	}
