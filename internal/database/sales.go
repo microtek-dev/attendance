@@ -98,7 +98,7 @@ func SyncEmployeeData() {
 	}
 
 	// look at the above axios request in the comments for the logic to store the employees in the database, first truncate the table and then store the active employees
-	err = ProgressionDB.Exec("TRUNCATE TABLE erprecords").Error
+	err = ProgressionDB.Exec("TRUNCATE TABLE microtek.erprecords").Error
 	if err != nil {
 		log.Fatal(err)
 	}
