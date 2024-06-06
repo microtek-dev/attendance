@@ -305,7 +305,28 @@ func SaveSalesAttendanceLocallyBulk(salesAttendance []SalesAttendance) {
 		go func(attendance SalesAttendance) {
 			defer wg.Done()
 
-			err := ProgressionDB.Exec(`INSERT INTO microtek.sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?,?)`, attendance.EmployeeId, attendance.InTime, attendance.OutTime, time.Now(), time.Now()).Error
+			var inTime, outTime time.Time
+			if attendance.InTime.IsZero() {
+				if !attendance.OutTime.IsZero() {
+					inTime = attendance.OutTime
+				} else {
+					inTime = time.Now()
+				}
+			} else {
+				inTime = attendance.InTime
+			}
+
+			if attendance.OutTime.IsZero() {
+				if !attendance.InTime.IsZero() {
+					outTime = attendance.InTime
+				} else {
+					outTime = time.Now()
+				}
+			} else {
+				outTime = attendance.OutTime
+			}
+
+			err := ProgressionDB.Exec(`INSERT INTO microtek.sales_dailyattendances (employee_id, InTime, OutTime, createdAt, updatedAt) VALUES (?,?,?,?,?)`, attendance.EmployeeId, inTime, outTime, time.Now(), time.Now()).Error
 			if err != nil {
 				errorsChan <- err
 				return
@@ -341,8 +362,29 @@ func InsertSalesToAwsFrtDataBulk(punchData []SalesAttendance) {
 			defer wg.Done()
 
 			for _, data := range punchData {
-				InsertIntoAwsFrtData(data.EmployeeId, data.InTime)
-				InsertIntoAwsFrtData(data.EmployeeId, data.OutTime)
+				var inTime, outTime time.Time
+				if data.InTime.IsZero() {
+					if !data.OutTime.IsZero() {
+						inTime = data.OutTime
+					} else {
+						break
+					}
+				} else {
+					inTime = data.InTime
+				}
+
+				if data.OutTime.IsZero() {
+					if !data.InTime.IsZero() {
+						outTime = data.InTime
+					} else {
+						break
+					}
+				} else {
+					outTime = data.OutTime
+				}
+
+				InsertIntoAwsFrtData(data.EmployeeId, inTime)
+				InsertIntoAwsFrtData(data.EmployeeId, outTime)
 			}
 		}(punchData[i:end])
 	}
