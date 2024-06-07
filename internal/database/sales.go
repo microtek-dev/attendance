@@ -217,7 +217,8 @@ func getAttendanceForEmployee(employee_id string, date string) {
 	var attendance FieldAssistAttendance
 	err = json.Unmarshal(body, &attendance)
 	if err != nil {
-		log.Fatal("Error unmarshalling attendance data: ", err, string(body))
+		log.Println("Error unmarshalling attendance data: ", err, string(body))
+		return
 	}
 
 	for _, task := range attendance.UserTimelineDay {
@@ -234,15 +235,24 @@ func saveSalesAttendance(userErpId string, punchDate string, task struct {
 	ActivityType  string     `json:"ActivityType"`
 	OutTime       CustomTime `json:"OutTime"`
 }) {
-	var inTime, outTime interface{}
-	if task.InTime.Valid {
-		inTime = task.InTime.Time
-	}
-	if task.OutTime.Valid {
-		outTime = task.OutTime.Time
+	// Load the "Asia/Kolkata" timezone
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Fatalf("failed to load location: %v", err)
 	}
 
-	err := ProgressionDB.Exec(`INSERT INTO microtek.dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, inTime, task.Latitude, task.ActivityType, outTime, task.Longitude, time.Now(), time.Now()).Error
+	// adjust the InTime and OutTime to the "Asia/Kolkata" timezone
+	var inTime, outTime interface{}
+	if task.InTime.Valid {
+		_, offset := task.InTime.In(loc).Zone()
+		inTime = task.InTime.Add(-time.Duration(offset) * time.Second)
+	}
+	if task.OutTime.Valid {
+		_, offset := task.OutTime.In(loc).Zone()
+		outTime = task.OutTime.Add(-time.Duration(offset) * time.Second)
+	}
+
+	err = ProgressionDB.Exec(`INSERT INTO microtek.dailytasks (UserErpId, PunchDate, TransactionId, DayStartType, InTime, Latitude, ActivityType, OutTime, Longitude, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userErpId, punchDate, task.TransactionId, task.DayStartType, inTime, task.Latitude, task.ActivityType, outTime, task.Longitude, time.Now(), time.Now()).Error
 	if err != nil {
 		log.Fatal(err)
 	}
