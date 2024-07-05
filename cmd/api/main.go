@@ -12,6 +12,7 @@ func main() {
 	cron.FRTCron()
 	cron.PeoplestrongCron()
 	cron.SalesCron()
+	cron.CrmCron()
 
 	err := server.ListenAndServe()
 	if err != nil {

@@ -2,6 +2,7 @@ package cron
 
 import (
 	"attendance/internal/database"
+	"fmt"
 
 	"github.com/robfig/cron"
 )
@@ -18,7 +19,8 @@ func CrmCron() {
 	c.AddFunc("10 21 * * *", func() {
 		CrmCurrentDayCron()
 	})
-	// c.Start()
+
+	c.Start()
 }
 
 func CrmPreviousDayCron() {
@@ -27,7 +29,11 @@ func CrmPreviousDayCron() {
 
 	// combine both attendanceData and unmatchedData and insert into AWS FRT table
 	combinedAttendanceData := append(attendanceData, unmatchedData...)
+	if len(combinedAttendanceData) < 1 {
+		return
+	}
 	database.InsertCrmToAwsFrtDataBulk(combinedAttendanceData)
+	fmt.Println("CRM Previous Day Cron executed successfully")
 }
 
 func CrmCurrentDayCron() {
@@ -36,5 +42,9 @@ func CrmCurrentDayCron() {
 
 	// combine both attendanceData and unmatchedData and insert into AWS FRT table
 	combinedAttendanceData := append(attendanceData, unmatchedData...)
+	if len(combinedAttendanceData) < 1 {
+		return
+	}
 	database.InsertCrmToAwsFrtDataBulk(combinedAttendanceData)
+	fmt.Println("CRM Current Day Cron executed successfully")
 }
