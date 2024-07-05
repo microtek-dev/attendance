@@ -11,12 +11,12 @@ func CrmCron() {
 	c := cron.New()
 
 	// Run the CrmPreviousDayCron function every day at 7:30 AM
-	c.AddFunc("30 7 * * *", func() {
+	c.AddFunc("0 30 7 * * *", func() {
 		CrmPreviousDayCron()
 	})
 
 	// Run the CrmCurrentDayCron function every day at 9:30 PM
-	c.AddFunc("10 21 * * *", func() {
+	c.AddFunc("0 30 21 * * *", func() {
 		CrmCurrentDayCron()
 	})
 
