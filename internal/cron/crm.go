@@ -33,6 +33,7 @@ func CrmPreviousDayCron() {
 		return
 	}
 	database.InsertCrmToAwsFrtDataBulk(combinedAttendanceData)
+	database.InsertIntoCRMAttendanceLogBulk(combinedAttendanceData)
 	fmt.Println("CRM Previous Day Cron executed successfully")
 }
 
@@ -46,5 +47,6 @@ func CrmCurrentDayCron() {
 		return
 	}
 	database.InsertCrmToAwsFrtDataBulk(combinedAttendanceData)
+	database.InsertIntoCRMAttendanceLogBulk(combinedAttendanceData)
 	fmt.Println("CRM Current Day Cron executed successfully")
 }

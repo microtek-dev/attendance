@@ -19,6 +19,43 @@ func InsertIntoCrmAttendanceLog(employeeId string, inTime time.Time, outTime tim
 	}
 }
 
+func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
+	var wg sync.WaitGroup
+	chunkSize := 100
+
+	for i := 0; i < len(punchData); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(punchData) {
+			end = len(punchData)
+		}
+
+		wg.Add(1)
+		go func(punchData []CrmAttendanceLog) {
+			defer wg.Done()
+
+			for _, data := range punchData {
+				// the intime and outtime are strings in this format - 2024-05-30 20:22:35,2024-05-30 20:22:35
+				// so convert them to golangs time.Time format
+				convertedInTime, err := time.Parse("2006-01-02 15:04:05", data.InTime)
+				if err != nil {
+					log.Fatalf("failed to parse InTime: %v", err)
+				}
+				convertedOutTime, err := time.Parse("2006-01-02 15:04:05", data.OutTime)
+				if err != nil {
+					log.Fatalf("failed to parse OutTime: %v", err)
+				}
+
+				InsertIntoCrmAttendanceLog(data.EmployeeId, convertedInTime, convertedOutTime)
+			}
+		}(punchData[i:end])
+	}
+
+	wg.Wait()
+
+	log.Println("Inserted data into CRM successfully. Total records: ", len(punchData))
+}
+
 func GetPreviousDayCRMAttendanceData() []CrmAttendanceLog {
 	var result []CrmAttendanceLog
 	err := TestDB.Raw("select new_e_code employee_id,in_time InTime, out_time OutTime from ( select * from attendancedata t1,crm_employee_mapping t2 where  t1.punch_date >=date_format(current_date() -  INTERVAL 1 DAY,'%Y-%m-%d') and t1.punch_date < date_format(current_date(),'%Y-%m-%d') and t1.eng_id=t2.employee_id ) tt;").Scan(&result).Error
