@@ -25,6 +25,12 @@ func SyncFrtLogsPeoplestrongCron() {
 	if len(frtLogData) == 0 {
 		return
 	}
+	// some of the UserID in the frtLogData have a trailing "T" character, only take the first five characters, if more than 5 characters
+	for i := 0; i < len(frtLogData); i++ {
+		if len(frtLogData[i].UserID) > 5 {
+			frtLogData[i].UserID = frtLogData[i].UserID[:5]
+		}
+	}
 
 	currentPushedId := database.InsertFrtLogBulk(frtLogData)
 	database.UpdateLastPushedId(currentPushedId)
