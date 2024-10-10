@@ -13,10 +13,9 @@ import (
 )
 
 var (
-	TestDB         *gorm.DB
-	ProgressionDB  *gorm.DB
-	AwsDB          *gorm.DB
-	PeoplestrongDB *gorm.DB
+	TestDB        *gorm.DB
+	ProgressionDB *gorm.DB
+	AwsDB         *gorm.DB
 )
 
 func init() {
@@ -34,12 +33,8 @@ func init() {
 	if err != nil {
 		log.Fatalf("failed to connect to AwsDB database: %v", err)
 	}
-	PeoplestrongDB, err = gorm.Open(sqlserver.Open(os.Getenv("PEOPLESTRONG_DATABASE_URL")), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("failed to connect to Peoplestrong database: %v", err)
-	}
 
-	dbs := []*gorm.DB{TestDB, ProgressionDB, AwsDB, PeoplestrongDB}
+	dbs := []*gorm.DB{TestDB, ProgressionDB, AwsDB}
 
 	for _, db := range dbs {
 		sqlDB, err := db.DB()

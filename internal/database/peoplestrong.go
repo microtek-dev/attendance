@@ -40,7 +40,7 @@ func FetchFrtData(lastPushedId int) []FRTLogData {
 }
 
 func InsertPunchData(empID string, punchDateTime time.Time) {
-	err := PeoplestrongDB.Exec(`INSERT INTO mtek_raw_punch_ps_napp(Empid ,Punch_Date_Time ,RP_CREATED_DATE ,Record_LastUpdated ,Isread) VALUES (?, ?, GETDATE(), GETDATE(), '0')`, empID, punchDateTime).Error
+	err := AwsDB.Exec(`INSERT INTO AttendanceToPS(Empid ,Punch_Date_Time ,RP_CREATED_DATE ,Record_LastUpdated ,Isread) VALUES (?, ?, GETDATE(), GETDATE(), '0')`, empID, punchDateTime).Error
 	if err != nil {
 		log.Fatalf("failed to insert punch data: %v", err)
 	}
@@ -70,7 +70,7 @@ func InsertFrtLogBulk(punchData []FRTLogData) int {
 
 	wg.Wait()
 
-	fmt.Println("Total records inserted to napp table: ", len(punchData))
+	fmt.Println("Total records inserted to AttendanceToPS table: ", len(punchData))
 
 	return punchData[len(punchData)-1].FrtID
 }
@@ -81,3 +81,5 @@ func UpdateLastPushedId(lastPushedId int) {
 		log.Fatalf("failed to update last pushed id: %v", err)
 	}
 }
+
+// push attendance from device_log
