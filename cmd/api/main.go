@@ -14,8 +14,11 @@ func main() {
 	cron.SalesCron()
 	cron.CrmCron()
 
+cron.SyncFrtLogsPeoplestrongCron();
+
 	err := server.ListenAndServe()
 	if err != nil {
 		panic(fmt.Sprintf("cannot start server: %s", err))
 	}
 }
+

@@ -2,6 +2,7 @@ package cron
 
 import (
 	"attendance/internal/database"
+	"fmt"
 
 	"github.com/robfig/cron"
 )
@@ -18,6 +19,7 @@ func PeoplestrongCron() {
 }
 
 func SyncFrtLogsPeoplestrongCron() {
+	fmt.Println("Syncing FRT logs from Peoplestrong... testing")
 	lastPushedId := database.LastPushedId()
 	frtLogData := database.FetchFrtData(lastPushedId)
 
