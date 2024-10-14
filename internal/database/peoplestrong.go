@@ -40,7 +40,7 @@ func FetchFrtData(lastPushedId int) []FRTLogData {
 }
 
 func InsertPunchData(id int, empID string, punchDateTime time.Time) {
-	err := AwsDB.Exec(`INSERT INTO AttendanceToPS(ID, Empid ,Punch_Date_Time ,RP_CREATED_DATE ,Record_LastUpdated ,Isread) VALUES (?, ?, ?, GETDATE(), GETDATE(), '0')`, id, empID, punchDateTime).Error
+	err := AwsDB.Exec(`INSERT INTO AttendanceToPSTemp(ID, Empid ,Punch_Date_Time ,RP_CREATED_DATE ,Record_LastUpdated ,Isread) VALUES (?, ?, ?, GETDATE(), GETDATE(), '0')`, id, empID, punchDateTime).Error
 	if err != nil {
 		log.Fatalf("failed to insert punch data: %v", err)
 	}
