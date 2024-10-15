@@ -14,6 +14,7 @@ func main() {
 	cron.SalesCron()
 	cron.CrmCron()
 
+
 cron.SyncFrtLogsPeoplestrongCron();
 
 	err := server.ListenAndServe()
