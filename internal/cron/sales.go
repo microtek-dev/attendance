@@ -16,6 +16,18 @@ func SalesCron() {
 		database.SyncEmployeeData()
 	})
 
+	// 
+
+	c.AddFunc("0 0 4 * * *", func() {
+		dayBeforeYesterday := time.Now().AddDate(0, 0, -2).Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(dayBeforeYesterday)
+	})
+
+	c.AddFunc("0 30 4 * * *", func() {
+	dayBeforeYesterday := time.Now().AddDate(0, 0, -2).Format("2006-01-02")
+		database.SyncSalesAttendanceFromFieldAssist(dayBeforeYesterday)
+	})
+
 	// Sync sales attendance every day at 5:30 AM
 	c.AddFunc("0 30 5 * * *", func() {
 		yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
