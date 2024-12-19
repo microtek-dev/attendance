@@ -23,7 +23,7 @@ func LastPushedId() int {
 }
 
 type FRTLogData struct {
-	FrtID   int       `gorm:"column:frt_log_id"`
+	FrtID   int       `gorm:"column:log_id"`
 	UserID  string    `gorm:"column:user_id"`
 	LogDate time.Time `gorm:"column:log_date"`
 }
@@ -31,10 +31,11 @@ type FRTLogData struct {
 func FetchFrtData(lastPushedId int) []FRTLogData {
 	var frtLogData []FRTLogData
 
-	err := ProgressionDB.Raw(`select frt_log_id, user_id, log_date from mtek_db.frt_logs where log_id > ? and (user_id like '5%' or user_id like '6%' or user_id like '7%') order by log_id asc`, lastPushedId).Scan(&frtLogData).Error
+	err := ProgressionDB.Raw(`select log_id, user_id, log_date from mtek_db.frt_logs where log_id > ? and (user_id like '5%' or user_id like '6%' or user_id like '7%') order by log_id asc`, lastPushedId).Scan(&frtLogData).Error
 	if err != nil {
 		log.Fatalf("failed to fetch frt log data: %v", err)
 	}
+	fmt.Println("Total records fetched from frt_logs table: ", len(frtLogData))
 
 	return frtLogData
 }

@@ -2,6 +2,7 @@ package cron
 
 import (
 	"attendance/internal/database"
+	"fmt"
 
 	"github.com/robfig/cron"
 )
@@ -18,6 +19,7 @@ func FRTCron() {
 }
 
 func SyncAwsFrtDataCron() {
+	fmt.Println("Syncing FRT data from AWS")
 	maxId := database.FetchFRTMaxFetchId()
 	frtData := database.FetchAwsFRTData(maxId)
 
@@ -27,4 +29,5 @@ func SyncAwsFrtDataCron() {
 	}
 
 	database.InsertFRTLogs(frtData)
+	fmt.Println("FRT data synced successfully")
 }
