@@ -22,8 +22,8 @@ func InsertIntoCrmAttendanceLog(employeeId string, inTime time.Time, outTime tim
 func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
 	var wg sync.WaitGroup
 	chunkSize := 100
+	skippedRecords := 0
 
-	// Load the "Asia/Kolkata" timezone
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
 		log.Fatalf("failed to load location: %v", err)
@@ -44,11 +44,22 @@ func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
 				// Parse time in IST timezone
 				convertedInTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.InTime, loc)
 				if err != nil {
-					log.Fatalf("failed to parse InTime: %v", err)
+					log.Printf("Skipping record for employee %s: invalid InTime format: %v", data.EmployeeId, err)
+					skippedRecords++
+					continue
 				}
 				convertedOutTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.OutTime, loc)
 				if err != nil {
-					log.Fatalf("failed to parse OutTime: %v", err)
+					log.Printf("Skipping record for employee %s: invalid OutTime format: %v", data.EmployeeId, err)
+					skippedRecords++
+					continue
+				}
+
+				// Validate times are not zero
+				if convertedInTime.IsZero() || convertedOutTime.IsZero() {
+					log.Printf("Skipping record for employee %s: zero timestamp detected", data.EmployeeId)
+					skippedRecords++
+					continue
 				}
 
 				// Adjust timezone offset
@@ -63,8 +74,7 @@ func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
 	}
 
 	wg.Wait()
-
-	log.Println("Inserted data into CRM successfully. Total records: ", len(punchData))
+	log.Printf("Inserted data into CRM successfully. Total records: %d, Skipped records: %d", len(punchData), skippedRecords)
 }
 
 func GetPreviousDayCRMAttendanceData() []CrmAttendanceLog {
@@ -106,6 +116,7 @@ func GetPreviousDayUnmatchedCRMAttendanceData() []CrmAttendanceLog {
 func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 	var wg sync.WaitGroup
 	chunkSize := 100
+	skippedRecords := 0
 
 	// Load the "Asia/Kolkata" timezone
 	loc, err := time.LoadLocation("Asia/Kolkata")
@@ -128,11 +139,22 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 				// Parse time in IST timezone
 				convertedInTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.InTime, loc)
 				if err != nil {
-					log.Fatalf("failed to parse InTime: %v", err)
+					log.Printf("Skipping record for employee %s: invalid InTime format: %v", data.EmployeeId, err)
+					skippedRecords++
+					continue
 				}
 				convertedOutTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.OutTime, loc)
 				if err != nil {
-					log.Fatalf("failed to parse OutTime: %v", err)
+					log.Printf("Skipping record for employee %s: invalid OutTime format: %v", data.EmployeeId, err)
+					skippedRecords++
+					continue
+				}
+
+				// Validate times are not zero
+				if convertedInTime.IsZero() || convertedOutTime.IsZero() {
+					log.Printf("Skipping record for employee %s: zero timestamp detected", data.EmployeeId)
+					skippedRecords++
+					continue
 				}
 
 				// Adjust timezone offset
@@ -149,5 +171,5 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 
 	wg.Wait()
 
-	log.Println("Inserted data into AWS successfully. Total records: ", len(punchData))
+	log.Printf("Inserted data into AWS successfully. Total records: %d, Skipped records: %d", len(punchData), skippedRecords)
 }
