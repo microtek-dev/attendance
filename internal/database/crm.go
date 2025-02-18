@@ -23,6 +23,12 @@ func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
 	var wg sync.WaitGroup
 	chunkSize := 100
 
+	// Load the "Asia/Kolkata" timezone
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Fatalf("failed to load location: %v", err)
+	}
+
 	for i := 0; i < len(punchData); i += chunkSize {
 		end := i + chunkSize
 
@@ -35,16 +41,21 @@ func InsertIntoCRMAttendanceLogBulk(punchData []CrmAttendanceLog) {
 			defer wg.Done()
 
 			for _, data := range punchData {
-				// the intime and outtime are strings in this format - 2024-05-30 20:22:35,2024-05-30 20:22:35
-				// so convert them to golangs time.Time format
-				convertedInTime, err := time.Parse("2006-01-02 15:04:05", data.InTime)
+				// Parse time in IST timezone
+				convertedInTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.InTime, loc)
 				if err != nil {
 					log.Fatalf("failed to parse InTime: %v", err)
 				}
-				convertedOutTime, err := time.Parse("2006-01-02 15:04:05", data.OutTime)
+				convertedOutTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.OutTime, loc)
 				if err != nil {
 					log.Fatalf("failed to parse OutTime: %v", err)
 				}
+
+				// Adjust timezone offset
+				_, offset := convertedInTime.In(loc).Zone()
+				convertedInTime = convertedInTime.Add(-time.Duration(offset) * time.Second)
+				_, offset = convertedOutTime.In(loc).Zone()
+				convertedOutTime = convertedOutTime.Add(-time.Duration(offset) * time.Second)
 
 				InsertIntoCrmAttendanceLog(data.EmployeeId, convertedInTime, convertedOutTime)
 			}
@@ -96,6 +107,12 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 	var wg sync.WaitGroup
 	chunkSize := 100
 
+	// Load the "Asia/Kolkata" timezone
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Fatalf("failed to load location: %v", err)
+	}
+
 	for i := 0; i < len(punchData); i += chunkSize {
 		end := i + chunkSize
 
@@ -108,16 +125,21 @@ func InsertCrmToAwsFrtDataBulk(punchData []CrmAttendanceLog) {
 			defer wg.Done()
 
 			for _, data := range punchData {
-				// the intime and outtime are strings in this format - 2024-05-30 20:22:35,2024-05-30 20:22:35
-				// so convert them to golangs time.Time format
-				convertedInTime, err := time.Parse("2006-01-02 15:04:05", data.InTime)
+				// Parse time in IST timezone
+				convertedInTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.InTime, loc)
 				if err != nil {
 					log.Fatalf("failed to parse InTime: %v", err)
 				}
-				convertedOutTime, err := time.Parse("2006-01-02 15:04:05", data.OutTime)
+				convertedOutTime, err := time.ParseInLocation("2006-01-02 15:04:05", data.OutTime, loc)
 				if err != nil {
 					log.Fatalf("failed to parse OutTime: %v", err)
 				}
+
+				// Adjust timezone offset
+				_, offset := convertedInTime.In(loc).Zone()
+				convertedInTime = convertedInTime.Add(-time.Duration(offset) * time.Second)
+				_, offset = convertedOutTime.In(loc).Zone()
+				convertedOutTime = convertedOutTime.Add(-time.Duration(offset) * time.Second)
 
 				InsertIntoAwsFrtData(data.EmployeeId, convertedInTime)
 				InsertIntoAwsFrtData(data.EmployeeId, convertedOutTime)
